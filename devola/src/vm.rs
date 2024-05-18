@@ -351,7 +351,7 @@ impl Devola {
                 self.memory[register] = self.pop();
                 Ok(())
             }
-            Instruction::Nop | Instruction::_Label(_) | Instruction::_LabeledJump(_, _) => Ok(()),
+            Instruction::Nop | Instruction::_Label(_) | Instruction::_LabeledJump(_, _) | Instruction::_LabeledCall(_) => Ok(()),
             Instruction::_Assert(addressing_mode, value) => {
                 assert_eq!(self.resolve_rvalue(addressing_mode), value);
                 Ok(())

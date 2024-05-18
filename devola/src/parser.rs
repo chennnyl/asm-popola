@@ -1,6 +1,8 @@
 use crate::instructions::*;
 use std::collections::HashMap;
 
+// TODO: add parsing of actual code rather than like. metaparsing
+
 pub fn process_labels(code: Vec<Instruction>) -> Result<Vec<Instruction>, Vec<(&'static str, usize)>> {
     let jump_table: HashMap<&'static str, usize> = code.iter()
         .enumerate()
@@ -21,6 +23,14 @@ pub fn process_labels(code: Vec<Instruction>) -> Result<Vec<Instruction>, Vec<(&
                 &Instruction::_LabeledJump(jump_type, label) => {
                     if let Some(pc) = jump_table.get(&label) {
                         Some(Instruction::Jump(jump_type, *pc))
+                    } else {
+                        missing_labels.push((label, line));
+                        None
+                    }
+                },
+                &Instruction::_LabeledCall(label) => {
+                    if let Some(pc) = jump_table.get(&label) {
+                        Some(Instruction::Call(CallType::Local(*pc)))
                     } else {
                         missing_labels.push((label, line));
                         None

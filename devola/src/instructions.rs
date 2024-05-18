@@ -28,7 +28,7 @@ pub enum JumpType {
 
 #[derive(Clone)]
 pub enum CallType {
-    Local(u16),
+    Local(usize),
     Library(String)
 }
 
@@ -93,5 +93,9 @@ pub enum Instruction {
     Call(CallType),
     Return,
     Push(Register), Pop(Register),
-    Nop, _Label(&'static str), _Assert(AddressingMode, u8), _LabeledJump(JumpType, &'static str)
+    Nop,
+    _Label(&'static str),
+    _Assert(AddressingMode, u8),
+    _LabeledJump(JumpType, &'static str),
+    _LabeledCall(&'static str)
 }

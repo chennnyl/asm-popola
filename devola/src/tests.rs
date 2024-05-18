@@ -98,3 +98,79 @@ fn test_square() {
         panic!();
     }
 }
+
+#[test]
+/// Tests the equivalent of
+/// ```asm
+///     jmp main
+///
+/// ; place number to square in b, square will be returned there
+/// square:
+///     push a
+///     push c
+///     lda 0       ; i = 0
+///     ldc 0       ; square = 0
+/// loop:           ; while true
+///     cmp b       ; if i == n break
+///     jz end_loop
+///     push a      ; square += n
+///     lda c
+///     add b
+///     ldc a
+///     pop a
+///     inc         ; i++
+///     jmp loop
+/// end_loop:
+///     ldb c
+///     pop c
+///     pop a
+///     ret
+///
+/// main:
+///     ldb 13
+///     call square
+///
+///     ldb 12
+///     call square
+///
+///     ldb 3
+///     call square
+fn test_subroutine_square() {
+    let code: Vec<Instruction> = parser::process_labels(vec![
+            Instruction::_LabeledJump(JumpType::Unconditional, "main"),
+
+        Instruction::_Label("square"),
+            Instruction::Push       (Register::Accumulator),
+            Instruction::Push       (Register::UtilityC),
+            Instruction::Load       (Register::Accumulator, AddressingMode::Immediate   (0)),
+            Instruction::Load       (Register::UtilityC,    AddressingMode::Immediate   (0)),
+        Instruction::_Label("loop"),
+            Instruction::Compare                            (AddressingMode::Register   (Register::UtilityB)),
+            Instruction::_LabeledJump(JumpType::Flag(Flag::Zero, true), "end_loop"),
+            Instruction::Push       (Register::Accumulator),
+            Instruction::Load       (Register::Accumulator, AddressingMode::Register    (Register::UtilityC)),
+            Instruction::Add                                (AddressingMode::Register   (Register::UtilityB)),
+            Instruction::Load       (Register::UtilityC,    AddressingMode::Register    (Register::Accumulator)),
+            Instruction::Pop        (Register::Accumulator),
+            Instruction::Increment,
+            Instruction::_LabeledJump(JumpType::Unconditional, "loop"),
+        Instruction::_Label("end_loop"),
+            Instruction::Load       (Register::UtilityB,    AddressingMode::Register    (Register::UtilityC)),
+            Instruction::Pop        (Register::UtilityC),
+            Instruction::Pop        (Register::Accumulator),
+            Instruction::Return,
+
+            Instruction::_Assert(AddressingMode::Immediate(0), 1), // unreachable
+
+        Instruction::_Label("main"),
+            Instruction::Load       (Register::UtilityB,    AddressingMode::Immediate   (13)),
+            Instruction::_LabeledCall("square"),
+            Instruction::_Assert(AddressingMode::Register(Register::UtilityB), 13*13)
+
+    ]).unwrap();
+
+    let devola = Devola::new(code);
+    if let Err(_) = devola.run() {
+        panic!();
+    }
+}
