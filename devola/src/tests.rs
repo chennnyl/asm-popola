@@ -144,6 +144,7 @@ fn test_subroutine_square() {
             Instruction::Push       (Register::UtilityC),
             Instruction::Load       (Register::Accumulator, AddressingMode::Immediate   (0)),
             Instruction::Load       (Register::UtilityC,    AddressingMode::Immediate   (0)),
+
         Instruction::_Label("loop"),
             Instruction::Compare                            (AddressingMode::Register   (Register::UtilityB)),
             Instruction::_LabeledJump(JumpType::Flag(Flag::Zero, true), "end_loop"),
@@ -165,7 +166,15 @@ fn test_subroutine_square() {
         Instruction::_Label("main"),
             Instruction::Load       (Register::UtilityB,    AddressingMode::Immediate   (13)),
             Instruction::_LabeledCall("square"),
-            Instruction::_Assert(AddressingMode::Register(Register::UtilityB), 13*13)
+            Instruction::_Assert(AddressingMode::Register(Register::UtilityB), 13*13),
+
+            Instruction::Load       (Register::UtilityB,    AddressingMode::Immediate   (12)),
+            Instruction::_LabeledCall("square"),
+            Instruction::_Assert(AddressingMode::Register(Register::UtilityB), 12*12),
+
+            Instruction::Load       (Register::UtilityB,    AddressingMode::Immediate   (3)),
+            Instruction::_LabeledCall("square"),
+            Instruction::_Assert(AddressingMode::Register(Register::UtilityB), 3*3)
 
     ]).unwrap();
 
