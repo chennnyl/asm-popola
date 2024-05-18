@@ -1,4 +1,5 @@
 use crate::instructions::*;
+use crate::parser;
 use crate::vm::*;
 
 #[cfg(test)]
@@ -50,6 +51,47 @@ fn test_load_store() {
             AddressingMode::Indirect(0xF000), 0xF0
         )
     ];
+
+    let devola = Devola::new(code);
+    if let Err(_) = devola.run() {
+        panic!();
+    }
+}
+#[test]
+/// Tests the equivalent of
+/// ```asm
+///     lda 0       ; i = 0
+///     ldb 5       ; n = 5
+///     ldc 0       ; square = 0
+/// loop:           ; while true
+///     cmp b       ; if i == n break
+///     jz end_loop
+///     push a      ; square += n
+///     lda c
+///     add b
+///     ldc a
+///     pop a
+///     inc         ; i++
+///     jmp loop
+/// end_loop:
+fn test_square() {
+    let code: Vec<Instruction> = parser::process_labels(vec![
+            Instruction::Load       (Register::Accumulator, AddressingMode::Immediate   (0)),
+            Instruction::Load       (Register::UtilityB,    AddressingMode::Immediate   (5)),
+            Instruction::Load       (Register::UtilityC,    AddressingMode::Immediate   (0)),
+        Instruction::_Label("loop"),
+            Instruction::Compare                            (AddressingMode::Register   (Register::UtilityB)),
+            Instruction::_LabeledJump(JumpType::Flag(Flag::Zero, true), "end_loop"),
+            Instruction::Push       (Register::Accumulator),
+            Instruction::Load       (Register::Accumulator, AddressingMode::Register    (Register::UtilityC)),
+            Instruction::Add                                (AddressingMode::Register   (Register::UtilityB)),
+            Instruction::Load       (Register::UtilityC,    AddressingMode::Register    (Register::Accumulator)),
+            Instruction::Pop        (Register::Accumulator),
+            Instruction::Increment,
+            Instruction::_LabeledJump(JumpType::Unconditional, "loop"),
+        Instruction::_Label("end_loop"),
+            Instruction::_Assert(AddressingMode::Register(Register::UtilityC), 25)
+    ]).unwrap();
 
     let devola = Devola::new(code);
     if let Err(_) = devola.run() {

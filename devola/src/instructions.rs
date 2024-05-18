@@ -5,7 +5,7 @@ pub enum Flag {
 
 #[derive(Clone, Copy)]
 pub enum Register {
-    Accumulator, IndexX, IndexY
+    Accumulator, IndexX, IndexY, UtilityB, UtilityC
 }
 
 #[derive(Clone, Copy)]

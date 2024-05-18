@@ -17,7 +17,7 @@ const INITIAL_STACK_POINTER: u16 = 0x0F00;
 struct DevolaMemory {
     memory: [u8; MEMORY_SIZE],
     flags: u8,
-    registers: [u8; 3]
+    registers: [u8; 5]
 }
 
 impl Index<u16> for DevolaMemory {
@@ -39,7 +39,9 @@ impl Index<Register> for DevolaMemory {
         &self.registers[match index {
             Register::Accumulator => 0,
             Register::IndexX => 1,
-            Register::IndexY => 2
+            Register::IndexY => 2,
+            Register::UtilityB => 3,
+            Register::UtilityC => 4
         }]
     }
 }
@@ -49,7 +51,9 @@ impl IndexMut<Register> for DevolaMemory {
         &mut self.registers[match index {
             Register::Accumulator => 0,
             Register::IndexX => 1,
-            Register::IndexY => 2
+            Register::IndexY => 2,
+            Register::UtilityB => 3,
+            Register::UtilityC => 4
         }]
     }
 }
@@ -59,7 +63,7 @@ impl DevolaMemory {
         Self {
             memory: [0; MEMORY_SIZE],
             flags: 0,
-            registers: [0; 3]
+            registers: [0; 5]
         }
     }
     /// Checks if the specified flag has been set.
