@@ -1,14 +1,14 @@
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Flag {
     Carry, Zero, Parity, Sign
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Register {
     Accumulator, IndexX, IndexY, UtilityB, UtilityC
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum AddressingMode {
     /// The byte stored in the corresponding register
     Register(Register),
@@ -20,19 +20,19 @@ pub enum AddressingMode {
     Index
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum JumpType {
     Unconditional,
     Flag(Flag, bool)
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum CallType {
     Local(usize),
     Library(String)
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Instruction {
     /// `ld[Ra] [Rb | N | I | XY]`
     /// - For `Rb`: Sets `Ra` to the value of `Rb`
@@ -94,8 +94,8 @@ pub enum Instruction {
     Return,
     Push(Register), Pop(Register),
     Nop,
-    _Label(&'static str),
+    _Label(String),
     _Assert(AddressingMode, u8),
-    _LabeledJump(JumpType, &'static str),
-    _LabeledCall(&'static str)
+    _LabeledJump(JumpType, String),
+    _LabeledCall(String)
 }

@@ -1,0 +1,6 @@
+    lda 10   ; a = 10
+    sta #5    ; mem[5] = 10
+    ldx a    ; x = 10
+    ldx 0xF0 ; x = 0xF0
+    ldy 0x00 ; y = 0x00
+    stx xy   ; mem[0xF000] = 0xF0

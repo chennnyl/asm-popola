@@ -1,0 +1,14 @@
+	lda  0      ; i = 0
+	ldb 5       ; n = 5
+	ldc 0       ; square = 0
+
+loop:           ; while true
+	cmp b       ; if i == n break
+	jz end_loop
+	push a      ; square += n
+	lda c
+	add b
+	ldc a
+	pop a
+	inc         ; i++
+	jmp loop

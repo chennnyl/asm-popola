@@ -75,21 +75,21 @@ fn test_load_store() {
 ///     jmp loop
 /// end_loop:
 fn test_square() {
-    let code: Vec<Instruction> = parser::process_labels(vec![
+    let code: Vec<Instruction> = parser::intermediate::process_labels(vec![
             Instruction::Load       (Register::Accumulator, AddressingMode::Immediate   (0)),
             Instruction::Load       (Register::UtilityB,    AddressingMode::Immediate   (5)),
             Instruction::Load       (Register::UtilityC,    AddressingMode::Immediate   (0)),
-        Instruction::_Label("loop"),
+        Instruction::_Label(String::from("loop")),
             Instruction::Compare                            (AddressingMode::Register   (Register::UtilityB)),
-            Instruction::_LabeledJump(JumpType::Flag(Flag::Zero, true), "end_loop"),
+            Instruction::_LabeledJump(JumpType::Flag(Flag::Zero, true), String::from("end_loop")),
             Instruction::Push       (Register::Accumulator),
             Instruction::Load       (Register::Accumulator, AddressingMode::Register    (Register::UtilityC)),
             Instruction::Add                                (AddressingMode::Register   (Register::UtilityB)),
             Instruction::Load       (Register::UtilityC,    AddressingMode::Register    (Register::Accumulator)),
             Instruction::Pop        (Register::Accumulator),
             Instruction::Increment,
-            Instruction::_LabeledJump(JumpType::Unconditional, "loop"),
-        Instruction::_Label("end_loop"),
+            Instruction::_LabeledJump(JumpType::Unconditional, String::from("loop")),
+        Instruction::_Label(String::from("end_loop")),
             Instruction::_Assert(AddressingMode::Register(Register::UtilityC), 25)
     ]).unwrap();
 
@@ -136,26 +136,26 @@ fn test_square() {
 ///     ldb 3
 ///     call square
 fn test_subroutine_square() {
-    let code: Vec<Instruction> = parser::process_labels(vec![
-            Instruction::_LabeledJump(JumpType::Unconditional, "main"),
+    let code: Vec<Instruction> = parser::intermediate::process_labels(vec![
+            Instruction::_LabeledJump(JumpType::Unconditional, String::from("main")),
 
-        Instruction::_Label("square"),
+        Instruction::_Label(String::from("square")),
             Instruction::Push       (Register::Accumulator),
             Instruction::Push       (Register::UtilityC),
             Instruction::Load       (Register::Accumulator, AddressingMode::Immediate   (0)),
             Instruction::Load       (Register::UtilityC,    AddressingMode::Immediate   (0)),
 
-        Instruction::_Label("loop"),
+        Instruction::_Label(String::from("loop")),
             Instruction::Compare                            (AddressingMode::Register   (Register::UtilityB)),
-            Instruction::_LabeledJump(JumpType::Flag(Flag::Zero, true), "end_loop"),
+            Instruction::_LabeledJump(JumpType::Flag(Flag::Zero, true), String::from("end_loop")),
             Instruction::Push       (Register::Accumulator),
             Instruction::Load       (Register::Accumulator, AddressingMode::Register    (Register::UtilityC)),
             Instruction::Add                                (AddressingMode::Register   (Register::UtilityB)),
             Instruction::Load       (Register::UtilityC,    AddressingMode::Register    (Register::Accumulator)),
             Instruction::Pop        (Register::Accumulator),
             Instruction::Increment,
-            Instruction::_LabeledJump(JumpType::Unconditional, "loop"),
-        Instruction::_Label("end_loop"),
+            Instruction::_LabeledJump(JumpType::Unconditional, String::from("loop")),
+        Instruction::_Label(String::from("end_loop")),
             Instruction::Load       (Register::UtilityB,    AddressingMode::Register    (Register::UtilityC)),
             Instruction::Pop        (Register::UtilityC),
             Instruction::Pop        (Register::Accumulator),
@@ -163,17 +163,17 @@ fn test_subroutine_square() {
 
             Instruction::_Assert(AddressingMode::Immediate(0), 1), // unreachable
 
-        Instruction::_Label("main"),
+        Instruction::_Label(String::from("main")),
             Instruction::Load       (Register::UtilityB,    AddressingMode::Immediate   (13)),
-            Instruction::_LabeledCall("square"),
+            Instruction::_LabeledCall(String::from("square")),
             Instruction::_Assert(AddressingMode::Register(Register::UtilityB), 13*13),
 
             Instruction::Load       (Register::UtilityB,    AddressingMode::Immediate   (12)),
-            Instruction::_LabeledCall("square"),
+            Instruction::_LabeledCall(String::from("square")),
             Instruction::_Assert(AddressingMode::Register(Register::UtilityB), 12*12),
 
             Instruction::Load       (Register::UtilityB,    AddressingMode::Immediate   (3)),
-            Instruction::_LabeledCall("square"),
+            Instruction::_LabeledCall(String::from("square")),
             Instruction::_Assert(AddressingMode::Register(Register::UtilityB), 3*3)
 
     ]).unwrap();
