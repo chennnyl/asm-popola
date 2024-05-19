@@ -1,3 +1,6 @@
+use std::fs::File;
+use std::path::Path;
+use std::io::Read;
 use crate::instructions::*;
 use crate::parser;
 use crate::vm::*;
@@ -52,7 +55,7 @@ fn test_load_store() {
         )
     ];
 
-    let devola = Devola::new(code);
+    let devola = Devola::new(code, None);
     if let Err(_) = devola.run() {
         panic!();
     }
@@ -75,7 +78,7 @@ fn test_load_store() {
 ///     jmp loop
 /// end_loop:
 fn test_square() {
-    let code: Vec<Instruction> = parser::intermediate::process_labels(vec![
+    let (code, _) = parser::intermediate::process_labels(vec![
             Instruction::Load       (Register::Accumulator, AddressingMode::Immediate   (0)),
             Instruction::Load       (Register::UtilityB,    AddressingMode::Immediate   (5)),
             Instruction::Load       (Register::UtilityC,    AddressingMode::Immediate   (0)),
@@ -93,7 +96,7 @@ fn test_square() {
             Instruction::_Assert(AddressingMode::Register(Register::UtilityC), 25)
     ]).unwrap();
 
-    let devola = Devola::new(code);
+    let devola = Devola::new(code, None);
     if let Err(_) = devola.run() {
         panic!();
     }
@@ -136,7 +139,7 @@ fn test_square() {
 ///     ldb 3
 ///     call square
 fn test_subroutine_square() {
-    let code: Vec<Instruction> = parser::intermediate::process_labels(vec![
+    let (code, _) = parser::intermediate::process_labels(vec![
             Instruction::_LabeledJump(JumpType::Unconditional, String::from("main")),
 
         Instruction::_Label(String::from("square")),
@@ -178,7 +181,37 @@ fn test_subroutine_square() {
 
     ]).unwrap();
 
-    let devola = Devola::new(code);
+    let devola = Devola::new(code, None);
+    if let Err(_) = devola.run() {
+        panic!();
+    }
+}
+
+#[test]
+fn test_compile_run_from_source_squares() {
+    let file = Path::new("sample/square.pop");
+    let code = crate::util::read_from_file(file);
+
+    let (code, symbols) = parser::text::compile(code).unwrap();
+
+    let mut devola = Devola::new(code, Some(symbols));
+    devola.enable_debug();
+
+    if let Err(_) = devola.run() {
+        panic!();
+    }
+}
+
+#[test]
+fn test_compile_run_from_source_squares_subroutines() {
+    let file = Path::new("sample/square_subroutines.pop");
+    let code = crate::util::read_from_file(file);
+
+    let (code, symbols) = parser::text::compile(code).unwrap();
+
+    let mut devola = Devola::new(code, Some(symbols));
+    devola.enable_debug();
+
     if let Err(_) = devola.run() {
         panic!();
     }

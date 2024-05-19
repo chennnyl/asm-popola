@@ -1,0 +1,29 @@
+    jmp main
+; place number to square in b, square will be returned there
+square:
+    push a
+    push c
+    lda 0       ; i = 0
+    ldc 0       ; square = 0
+loop:           ; while true
+    cmp b       ; if i == n break
+    jz end_loop
+    push a      ; square += n
+    lda c
+    add b
+    ldc a
+    pop a
+    inc         ; i++
+    jmp loop
+end_loop:
+    ldb c
+    pop c
+    pop a
+    ret
+main:
+    ldb 13
+    call square
+    ldb 12
+    call square
+    ldb 3
+    call square

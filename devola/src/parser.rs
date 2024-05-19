@@ -3,6 +3,20 @@ pub mod text {
     use regex::{RegexBuilder, Regex};
     use lazy_static::lazy_static;
 
+    #[derive(Debug, Copy, Clone, PartialEq)]
+    pub enum ParseErrorType {
+        InvalidRegister, InvalidFlag,
+        InvalidNumericLiteral, InvalidInstruction, InvalidLabel
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ParseError {
+        error_type: ParseErrorType,
+        location: usize,
+        info: Option<String>
+    }
+    type ParseResult = Result<(Vec<Instruction>, super::intermediate::SymbolTable), Vec<ParseError>>;
+
     impl TryFrom<char> for Register {
         type Error = ParseError;
         fn try_from(value: char) -> Result<Self, Self::Error> {
@@ -14,7 +28,8 @@ pub mod text {
                 'y' | 'Y' => Ok(Self::IndexY),
                 _ => Err(ParseError {
                     error_type: ParseErrorType::InvalidRegister,
-                    location: 0
+                    location: 0,
+                    info: Some(value.to_string())
                 })
             }
         }
@@ -29,7 +44,8 @@ pub mod text {
                 'z' | 'Z' => Ok(Self::Zero),
                 _ => Err(ParseError {
                     error_type: ParseErrorType::InvalidFlag,
-                    location: 0
+                    location: 0,
+                    info: Some(value.to_string())
                 })
             }
         }
@@ -37,7 +53,7 @@ pub mod text {
 
     lazy_static! {
         static ref COMMENTS: Regex = Regex::new(r";.*$").unwrap();
-        static ref BLANK_LINES: Regex = Regex::new(r"^\s$").unwrap();
+        static ref BLANK_LINES: Regex = Regex::new(r"^\s*$").unwrap();
         static ref DUPLICATE_SPACE: Regex = Regex::new(r"\s{2,}").unwrap();
         static ref LEADING_SPACE: Regex = Regex::new(r"^\s+").unwrap();
         static ref TRAILING_SPACE: Regex = Regex::new(r"\s+$").unwrap();
@@ -101,20 +117,8 @@ pub mod text {
             .case_insensitive(true)
             .build()
             .unwrap();
+        static ref INST_LABEL: Regex = Regex::new(r"(?<label>[a-z]\w*):").unwrap();
     }
-
-    #[derive(Debug, Copy, Clone, PartialEq)]
-    pub enum ParseErrorType {
-        InvalidRegister, InvalidFlag,
-        InvalidNumericLiteral, InvalidInstruction
-    }
-
-    #[derive(Debug, Copy, Clone, PartialEq)]
-    pub struct ParseError {
-        error_type: ParseErrorType,
-        location: usize
-    }
-    type ParseResult = Result<Vec<Instruction>, Vec<ParseError>>;
 
     fn extract_args_target_source(captures: regex::Captures) -> Vec<&str> {
         vec![
@@ -138,7 +142,8 @@ pub mod text {
             Ok(literal) => Ok(literal),
             Err(_) => Err(ParseError {
                 error_type: ParseErrorType::InvalidNumericLiteral,
-                location: 0
+                location: 0,
+                info: Some(arg.to_string())
             })
         }
     }
@@ -160,7 +165,8 @@ pub mod text {
                         if literal > u8::MAX as u16 {
                             Err(ParseError {
                                 error_type: ParseErrorType::InvalidNumericLiteral,
-                                location: 0
+                                location: 0,
+                                info: Some(literal.to_string())
                             })
                         } else {
                             Ok(AddressingMode::Immediate(literal as u8))
@@ -214,7 +220,7 @@ pub mod text {
         } else if let Some(captures) = INST_CONDITIONAL_JUMP.captures(line) {
             let label = captures.name("label").to_owned().unwrap().as_str().to_string();
             let flag = Flag::try_from(captures.name("flag").to_owned().unwrap().as_str().chars().next().unwrap())?;
-            let condition = !captures.name("condition").unwrap().as_str().is_empty(); // is_empty <=> 'n' is present
+            let condition = captures.name("condition").unwrap().as_str().is_empty(); // is_empty <=> 'n' is not present
 
             Ok(Instruction::_LabeledJump(
                 JumpType::Flag(flag, condition), label
@@ -235,10 +241,15 @@ pub mod text {
             Ok(Instruction::Pop(source))
         } else if INST_NOP.is_match(line) {
             Ok(Instruction::Nop)
+        } else if let Some(captures) = INST_LABEL.captures(line) {
+            let label = captures.name("label").to_owned().unwrap().as_str().to_string();
+
+            Ok(Instruction::_Label(label))
         } else {
             Err(ParseError {
                 error_type: ParseErrorType::InvalidInstruction,
-                location
+                location,
+                info: Some(line.to_string())
             })
         }
     }
@@ -277,7 +288,18 @@ pub mod text {
         if parse_errors.len() > 0 {
             Err(parse_errors)
         } else {
-            Ok(output)
+            let processed = super::intermediate::process_labels(output).map_err(
+                |missing_labels| {
+                    missing_labels.iter().map(|(label, location)| {
+                            ParseError {
+                                error_type: ParseErrorType::InvalidLabel,
+                                location: *location,
+                                info: Some(label.clone())
+                            }
+                    }).collect::<Vec<_>>()
+                }
+            )?;
+            Ok(processed)
         }
     }
 
@@ -285,15 +307,6 @@ pub mod text {
     mod tests {
         use super::*;
         use std::path::Path;
-        use std::fs::File;
-        use std::io::Read;
-
-        fn read_from_file(path: &Path) -> String {
-            let mut output = String::new();
-            File::open(path).unwrap().read_to_string(&mut output).unwrap();
-
-            output
-        }
 
         fn expect_parse_target_source(captures: regex::Captures, expected: Vec<&str>) {
             assert!(
@@ -307,15 +320,23 @@ pub mod text {
         #[test]
         fn test_preprocess() {
             let file = Path::new("sample/square.pop");
-            let code = read_from_file(file);
+            let code = crate::util::read_from_file(file);
 
             println!("{:?}", preprocess(code));
         }
 
         #[test]
-        fn test_compile() {
+        fn test_compile_loadstore() {
             let file = Path::new("sample/load_store.pop");
-            let code = read_from_file(file);
+            let code = crate::util::read_from_file(file);
+
+            println!("{:?}", compile(code));
+        }
+
+        #[test]
+        fn test_compile_squares() {
+            let file = Path::new("sample/square.pop");
+            let code = crate::util::read_from_file(file);
 
             println!("{:?}", compile(code));
         }
@@ -375,21 +396,25 @@ pub mod text {
             // Invalid numbers
             assert_eq!(to_addressing_mode("-"), Err(ParseError {
                 error_type: ParseErrorType::InvalidNumericLiteral,
-                location: 0
+                location: 0,
+                info: Some(String::from("-"))
             }));
             assert_eq!(to_addressing_mode("-100h"), Err(ParseError {
                 error_type: ParseErrorType::InvalidNumericLiteral,
-                location: 0
+                location: 0,
+                info: Some(String::from("-100h"))
             }));
             // Invalid base
             assert_eq!(to_addressing_mode("2b"), Err(ParseError {
                 error_type: ParseErrorType::InvalidNumericLiteral,
-                location: 0
+                location: 0,
+                info: Some(String::from("2b"))
             }));
             // Invalid range
             assert_eq!(to_addressing_mode("FFFFh"), Err(ParseError {
                 error_type: ParseErrorType::InvalidNumericLiteral,
-                location: 0
+                location: 0,
+                info: Some(String::from("FFFFh"))
             }));
         }
     }
@@ -401,8 +426,11 @@ pub mod intermediate {
     use crate::instructions::*;
     use std::collections::HashMap;
 
-    pub fn process_labels(code: Vec<Instruction>) -> Result<Vec<Instruction>, Vec<(String, usize)>> {
-        let jump_table: HashMap<String, usize> = code.iter()
+    pub type SymbolTable = HashMap<usize, String>;
+    pub type ReverseSymbolTable = HashMap<String, usize>;
+
+    pub fn process_labels(code: Vec<Instruction>) -> Result<(Vec<Instruction>, SymbolTable), Vec<(String, usize)>> {
+        let jump_table: ReverseSymbolTable = code.iter()
             .enumerate()
             .filter_map(|(pc, instruction)| {
                 match instruction {
@@ -443,7 +471,16 @@ pub mod intermediate {
         if missing_labels.len() > 0 {
             Err(missing_labels)
         } else {
-            Ok(filtered)
+            Ok(
+                (filtered,
+                 jump_table
+                     .iter()
+                     .map(
+                         |(k, v)| (*v, k.clone())
+                     )
+                     .collect()
+                )
+            )
         }
     }
 
@@ -462,7 +499,7 @@ pub mod intermediate {
                 Instruction::_Assert(AddressingMode::Register(Register::Accumulator), 10),
             ];
             let code = match process_labels(code) {
-                Ok(processed) => processed,
+                Ok((processed, _)) => processed,
                 Err(missing_labels) => {
                     eprintln!("Encountered the following missing labels:");
                     for (label, line) in missing_labels {
@@ -472,7 +509,7 @@ pub mod intermediate {
                 }
             };
 
-            let devola = Devola::new(code);
+            let devola = Devola::new(code, None);
             if let Err(_) = devola.run() {
                 panic!();
             }

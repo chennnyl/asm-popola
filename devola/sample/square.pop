@@ -12,3 +12,4 @@ loop:           ; while true
 	pop a
 	inc         ; i++
 	jmp loop
+end_loop:

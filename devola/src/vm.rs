@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ops::{Index, IndexMut};
 use crate::instructions::*;
 
@@ -100,7 +101,10 @@ impl DevolaMemory {
 pub struct Devola {
     memory: DevolaMemory,
     code: Vec<Instruction>,
-    pc: usize
+    pc: usize,
+    debug: bool,
+    call_stack: Vec<String>,
+    symbol_table: Option<HashMap<usize, String>>
 }
 #[derive(Copy, Clone, Debug)]
 pub enum DevolaError {
@@ -115,11 +119,14 @@ fn break_u16(word: u16) -> (u8, u8) {
 }
 
 impl Devola {
-    pub fn new(code: Vec<Instruction>) -> Self {
+    pub fn new(code: Vec<Instruction>, symbol_table: Option<HashMap<usize, String>>) -> Self {
         let mut out = Self {
             memory: DevolaMemory::new(),
             code,
-            pc: 0
+            pc: 0,
+            debug: false,
+            call_stack: Vec::new(),
+            symbol_table
         };
         let (msb, lsb) = break_u16(INITIAL_STACK_POINTER);
         out.memory[STACK_POINTER_MSB] = msb;
@@ -128,22 +135,73 @@ impl Devola {
         out
     }
 
+    pub fn enable_debug(&mut self) {
+        self.debug = true;
+    }
+    pub fn disable_debug(&mut self) {
+        self.debug = false;
+    }
+
     pub fn run(mut self) -> Result<(), DevolaError> {
+        let mut modified_addresses: HashMap<u16, u8> = HashMap::new();
+
         loop {
             match self.code.get(self.pc) {
                 Some(instruction) => {
+                    let debug_inst = instruction.clone();
                     if let Err(error) = self.execute_instruction(instruction.clone()) {
-                        eprintln!("An error of type {:?} occurred at PC {}", error, self.pc);
+                        if self.debug {
+                            eprintln!("An error of type {:?} occurred at PC {}", error, self.pc);
+                        }
                         return Err(error);
+                    }
+                    if self.debug {
+                        match debug_inst {
+                            Instruction::Store(_, mode) => {
+                                let lvalue = match mode {
+                                    AddressingMode::Indirect(address) => address,
+                                    AddressingMode::Index => self.memory.get_index(),
+                                    _ => 0
+                                };
+                                let rvalue = self.resolve_rvalue(mode.clone());
+
+                                modified_addresses.insert(lvalue, rvalue);
+                            }
+                            Instruction::Call(CallType::Local(loc)) => {
+                                let symbol = match &self.symbol_table {
+                                    Some(table) => table.get(&loc).unwrap_or(&String::from("unknown")).clone(),
+                                    None => loc.to_string()
+                                };
+
+                                println!("Call {}", symbol);
+                                self.call_stack.push(symbol);
+                            }
+                            Instruction::Return => {
+                                println!("{} returned {}", self.call_stack.pop().unwrap_or(String::from("unknown")), self.memory[Register::UtilityB]);
+                            },
+                            _ => {}
+                        };
                     }
                     self.pc += 1;
                 }
                 None => { break }
             }
         }
+
+        if self.debug {
+            println!("{:?}", modified_addresses);
+            println!("Registers:\nA: 0x{:02x} B: 0x{:02x} C: 0x{:02x} XY: 0x{:04x}",
+                     self.memory[Register::Accumulator], self.memory[Register::UtilityB],
+                     self.memory[Register::UtilityC], self.memory.get_index()
+            );
+            println!("Flags:\nC: {:?} P: {:?} S: {:?} Z: {:?}",
+                     self.memory.flag(Flag::Carry), self.memory.flag(Flag::Parity),
+                     self.memory.flag(Flag::Sign), self.memory.flag(Flag::Zero)
+            );
+        }
+
         Ok(())
     }
-
     fn push(&mut self, value: u8) {
         let new_stack_pointer = self.get_stack_pointer()-1;
         let (msb, lsb) = break_u16(new_stack_pointer);
