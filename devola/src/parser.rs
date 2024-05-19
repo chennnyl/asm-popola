@@ -402,19 +402,19 @@ pub mod text {
             assert_eq!(to_addressing_mode("-100h"), Err(ParseError {
                 error_type: ParseErrorType::InvalidNumericLiteral,
                 location: 0,
-                info: Some(String::from("-100h"))
+                info: Some(String::from("-100H"))
             }));
             // Invalid base
             assert_eq!(to_addressing_mode("2b"), Err(ParseError {
                 error_type: ParseErrorType::InvalidNumericLiteral,
                 location: 0,
-                info: Some(String::from("2b"))
+                info: Some(String::from("2B"))
             }));
             // Invalid range
             assert_eq!(to_addressing_mode("FFFFh"), Err(ParseError {
                 error_type: ParseErrorType::InvalidNumericLiteral,
                 location: 0,
-                info: Some(String::from("FFFFh"))
+                info: Some(0xFFFF.to_string())
             }));
         }
     }

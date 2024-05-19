@@ -1,0 +1,4 @@
+    lda 20
+    sta #00
+    ldb #00
+    add b
