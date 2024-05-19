@@ -1,6 +1,11 @@
 # Devola & Popola
 This project is a Rust-based implementation of an assembly language very loosely based on the instruction set used for the MOS 6502, as well as a corresponding virtual machine/runtime (collectively, **Popola**). It is currently split into two crates, `devola` (the assembler and virtual machine) and `popola` (a to-be-written IDE-type application in SDL2). It takes heavy inspiration from the PICO-8 project in creating a more accessible way to write for 8-bit fantasy consoles. The names come from [Devola](https://nier.fandom.com/wiki/Devola) and [Popola](https://nier.fandom.com/wiki/Popola), twin android sisters in the *Nier* video game franchise.
 
+## TODOs:
+Some examples use unimplemented features. These include
+- Offsetting the index `XY` quasi-register using `+N` notation
+- The 16-bit arithmetic instructions `adxy` and `sbxy`
+
 ## Popola System Specifications
 - **Memory**: 64KiB (16-bit addresses), split into ~60KiB of user memory and 4KiB of VRAM
 - **Registers**: 1 accumulator (`A`), 2 general-purpose (`B` and `C`), 2 index (`X` and `Y` -- `X` is the high byte and `Y` is the low byte of an address)
@@ -47,6 +52,7 @@ Let `n` represent the argument to `cmp` and `A` the value of the accumulator.
 - `P` is set if `A % 2 == n % 2` (`A` and `n` have the same parity) and unset otherwise.
 - `S` is set if `sgn(A) == sgn(n)` (`A` and `n` have the same sign) and unset otherwise.
 - `Z` is set if `A == n` and unset otherwise.
+### (TO BE ADDED) `ADXY (Rb | N | I | XY)`/`SBXY (Rb | N | I | XY)`: Perform 16-bit addition/subtraction
 ### `JMP (label)`: Unconditionally jump to a location in code
 ### `J[N](F) (label)`: Conditionally jump to a location in code
 If `N` is not present, jumps to the given label if the given flag is set; otherwise, only jumps if the given flag is unset. For example, `JNZ main` jumps to the label `main` only if `Z` is not set.
@@ -67,6 +73,8 @@ The 16-byte range `0x0FF0`-`0x0FFF` in memory is currently reserved for memory m
 - `MMIO+0x0`: Most significant byte of the stack pointer
 - `MMIO+0x1`: Least significant byte of the stack pointer
 - `MMIO+0x2-0xF`: Unassigned
+### Subroutine convention
+Convention for unary functions that return a single byte is to place both arguments and return values in the `B` register. For more complex functions, you can either use multiple registers or utilize a stack frame.
 
 ## Example programs
 More examples are available at `devola/sample`.
@@ -120,4 +128,54 @@ main:
     call square     ; b = 144
     ldb 3
     call square     ; b = 9
+```
+
+### Simple stack frame
+We could translate the program (example in Python)
+```python
+def add_doubles(n1, n2):
+    return 2*n1 + 2*n2
+
+def main():
+    add_doubles(10, 5)
+```
+
+```
+    jmp main
+add_doubles:
+    ;; set stack frame
+    push x      ;; save old index
+    push y      ; stack-6
+    ldx #0FF0h  ;; get current stack pointer
+    ldy #0FF1h
+    sbxy 2      ; two 1-byte local variables 
+    stx #0FF0h  ;; update stack pointer
+    sty #0FF1h
+    ;; done setting stack frame
+    
+    lda XY+7    ; n1
+    add a       ; n1+n1
+    sta XY+1    ; store in first local variable
+    lda XY+8    ; n2
+    add a       ; n2+n2
+    sta XY+2    ; store in second local variable
+    
+    ldb XY+1    ; access first local variable
+    lda XY+2    ; access second local variable
+    add b       ; 2*n1 + 2*n2
+    sta b       ; place in return
+    
+    ;; reset stack frame
+    adxy 2      ; throw away local variables
+    stx #0FF0h  ;; restore stack pointer
+    sty #0FF1h 
+    pop y       ;; restore old index
+    pop x
+    ;; done resetting stack frame
+    
+    ret
+main:
+    push 5
+    push 10
+    call add_doubles ; b has the result
 ```

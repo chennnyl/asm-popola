@@ -620,3 +620,6 @@ mod tests {
         execute_file("sample/read_write_memory.pop");
     }
 }
+
+// TODO: add adxy/sbxy for word arithmetic
+// TODO: allow offsetting index register
