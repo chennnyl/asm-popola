@@ -95,6 +95,7 @@ pub enum Instruction {
     Call(CallType),
     Return,
     Push(Register), Pop(Register),
+    AddXY(AddressingMode), SubtractXY(AddressingMode),
     Nop,
     _Label(String),
     _Assert(AddressingMode, u8),

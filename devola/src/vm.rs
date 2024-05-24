@@ -297,6 +297,58 @@ impl Devola {
 
                 Ok(())
             }
+            Instruction::AddXY(addressing_mode) => {
+                self.memory.clear_flag(Flag::Zero);
+                self.memory.clear_flag(Flag::Parity);
+                self.memory.clear_flag(Flag::Carry);
+
+                let addand = self.resolve_rvalue(addressing_mode);
+                let index = self.memory.get_index();
+
+                let (result, carry) = index.overflowing_add(addand as u16);
+                let (msb, lsb) = break_u16(result);
+
+                self.memory[Register::IndexX] = msb;
+                self.memory[Register::IndexY] = lsb;
+
+                if result == 0 {
+                    self.memory.set_flag(Flag::Zero);
+                }
+                if result % 2 == 1 {
+                    self.memory.set_flag(Flag::Parity);
+                }
+                if carry {
+                    self.memory.set_flag(Flag::Carry);
+                }
+
+                Ok(())
+            }
+            Instruction::SubtractXY(addressing_mode) => {
+                self.memory.clear_flag(Flag::Zero);
+                self.memory.clear_flag(Flag::Parity);
+                self.memory.clear_flag(Flag::Carry);
+
+                let addand = self.resolve_rvalue(addressing_mode);
+                let index = self.memory.get_index();
+
+                let (result, carry) = index.overflowing_sub(addand as u16);
+                let (msb, lsb) = break_u16(result);
+
+                self.memory[Register::IndexX] = msb;
+                self.memory[Register::IndexY] = lsb;
+
+                if result == 0 {
+                    self.memory.set_flag(Flag::Zero);
+                }
+                if result % 2 == 1 {
+                    self.memory.set_flag(Flag::Parity);
+                }
+                if carry {
+                    self.memory.set_flag(Flag::Carry);
+                }
+
+                Ok(())
+            }
             Instruction::Subtract(addressing_mode) => {
                 self.memory.clear_flag(Flag::Zero);
                 self.memory.clear_flag(Flag::Sign);
@@ -399,9 +451,8 @@ impl Devola {
 
 #[cfg(test)]
 mod tests {
-    use crate::instructions::*;
+    use super::*;
     use crate::parser;
-    use crate::vm::*;
 
     /// Tests the equivalent of:
     /// ```asm
@@ -439,6 +490,32 @@ mod tests {
             Instruction::_Assert(
                 AddressingMode::Indirect(0xF000), 0xF0
             )
+        ];
+
+        let mut devola = Devola::new(code, None);
+        if let Err(_) = devola.run() {
+            panic!();
+        }
+    }
+
+    #[test]
+    fn test_16bit_arithmetic() {
+        let code: Vec<Instruction> = vec![
+            Instruction::Load(Register::Accumulator, AddressingMode::Immediate(17)),
+            Instruction::Load(Register::IndexX, AddressingMode::Immediate(0)),
+            Instruction::Load(Register::IndexY, AddressingMode::Immediate(0xFF)),
+            Instruction::Store(Register::Accumulator, AddressingMode::Index),
+            Instruction::SubtractXY(AddressingMode::Immediate(1)),
+            Instruction::_Assert(
+                AddressingMode::IndexOffset(1), 17
+            ),
+            Instruction::AddXY(AddressingMode::Immediate(2)),
+            Instruction::_Assert(
+                AddressingMode::Register(Register::IndexX), 1
+            ),
+            Instruction::_Assert(
+                AddressingMode::Register(Register::IndexY), 0
+            ),
         ];
 
         let mut devola = Devola::new(code, None);

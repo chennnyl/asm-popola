@@ -86,7 +86,15 @@ pub mod text {
             .case_insensitive(true)
             .build()
             .unwrap();
+        static ref INST_ADDXY: Regex = RegexBuilder::new((String::from(r"adxy ") + *ANY_SOURCE).as_str())
+            .case_insensitive(true)
+            .build()
+            .unwrap();
         static ref INST_SUB: Regex = RegexBuilder::new((String::from(r"sub ") + *ANY_SOURCE).as_str())
+            .case_insensitive(true)
+            .build()
+            .unwrap();
+        static ref INST_SUBXY: Regex = RegexBuilder::new((String::from(r"sbxy ") + *ANY_SOURCE).as_str())
             .case_insensitive(true)
             .build()
             .unwrap();
@@ -210,12 +218,22 @@ pub mod text {
             let addressing_mode = to_addressing_mode(source)?;
 
             Ok(Instruction::Add(addressing_mode))
-        } else if let Some(captures) = INST_SUB.captures(line) {
+        }  else if let Some(captures) = INST_ADDXY.captures(line) {
+            let source = captures.name("source").to_owned().unwrap().as_str();
+            let addressing_mode = to_addressing_mode(source)?;
+
+            Ok(Instruction::AddXY(addressing_mode))
+        }  else if let Some(captures) = INST_SUB.captures(line) {
             let source = captures.name("source").to_owned().unwrap().as_str();
             let addressing_mode = to_addressing_mode(source)?;
 
             Ok(Instruction::Subtract(addressing_mode))
-        } else if let Some(captures) = INST_CMP.captures(line) {
+        }  else if let Some(captures) = INST_SUBXY.captures(line) {
+            let source = captures.name("source").to_owned().unwrap().as_str();
+            let addressing_mode = to_addressing_mode(source)?;
+
+            Ok(Instruction::SubtractXY(addressing_mode))
+        }  else if let Some(captures) = INST_CMP.captures(line) {
             let source = captures.name("source").to_owned().unwrap().as_str();
             let addressing_mode = to_addressing_mode(source)?;
 
