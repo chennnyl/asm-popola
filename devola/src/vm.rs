@@ -200,7 +200,8 @@ impl Devola {
             AddressingMode::Register(register) => self.memory[register],
             AddressingMode::Immediate(value) => value,
             AddressingMode::Indirect(source) => self.memory[source],
-            AddressingMode::Index => self.memory[self.memory.get_index()]
+            AddressingMode::Index => self.memory[self.memory.get_index()],
+            AddressingMode::IndexOffset(offset) => self.memory[self.memory.get_index() + offset]
         }
     }
 
@@ -219,7 +220,8 @@ impl Devola {
                 let dest_byte = match addressing_mode {
                     AddressingMode::Register(_) | AddressingMode::Immediate(_) => { return Err(DevolaError::InvalidArgument) }
                     AddressingMode::Indirect(pointer) => pointer,
-                    AddressingMode::Index => self.memory.get_index()
+                    AddressingMode::Index => self.memory.get_index(),
+                    AddressingMode::IndexOffset(offset) => self.memory.get_index() + offset
                 };
                 self.memory[dest_byte] = self.memory[register];
                 Ok(())
@@ -360,7 +362,6 @@ impl Devola {
                 Ok(())
             }
             Instruction::Call(call_type) => {
-                // TODO: figure out what to do if pc is outside u16 bounds
                 match call_type {
                     CallType::Local(dest) => {
                         let (msb, lsb) = break_u16(self.pc as u16);
@@ -398,7 +399,6 @@ impl Devola {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
     use crate::instructions::*;
     use crate::parser;
     use crate::vm::*;
@@ -583,6 +583,3 @@ mod tests {
         crate::util::execute_file("sample/read_write_memory.pop").unwrap();
     }
 }
-
-// TODO: add adxy/sbxy for word arithmetic
-// TODO: allow offsetting index register

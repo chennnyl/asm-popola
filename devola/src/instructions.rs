@@ -17,7 +17,9 @@ pub enum AddressingMode {
     /// The byte located at the immediate pointer argument
     Indirect(u16),
     /// The byte located at X:Y
-    Index
+    Index,
+    /// An offset from the index register
+    IndexOffset(u16)
 }
 
 #[derive(Clone, Copy, Debug)]
