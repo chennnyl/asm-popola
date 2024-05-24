@@ -3,10 +3,7 @@ This project is a Rust-based implementation of an assembly language very loosely
 
 `popola` takes the role of a kind of PPU -- it is responsible for managing and interpreting VRAM, input, etc., while `devola` handles the underlying code execution. 
 
-## TODOs:
-Some examples use unimplemented features. These include
 - Offsetting the index `XY` quasi-register using `+N` notation
-- The 16-bit arithmetic instructions `adxy` and `sbxy`
 
 ## Popola System Specifications
 - **Memory**: 64KiB (16-bit addresses), split into ~60KiB of user memory and 4KiB of VRAM

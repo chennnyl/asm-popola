@@ -4,7 +4,6 @@ use devola::stdlib;
 use devola::vm::Devola;
 use devola::utility::*;
 use sdl2::pixels::Color;
-use crate::inter::mmio;
 
 pub trait VRAMDeserialize: Sized {
 
