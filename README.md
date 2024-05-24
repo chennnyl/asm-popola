@@ -1,6 +1,8 @@
 # Devola & Popola
 This project is a Rust-based implementation of an assembly language very loosely based on the instruction set used for the MOS 6502, as well as a corresponding virtual machine/runtime (collectively, **Popola**). It is currently split into two crates, `devola` (the assembler and virtual machine) and `popola` (a to-be-written IDE-type application in SDL2). It takes heavy inspiration from the PICO-8 project in creating a more accessible way to write for 8-bit fantasy consoles. The names come from [Devola](https://nier.fandom.com/wiki/Devola) and [Popola](https://nier.fandom.com/wiki/Popola), twin android sisters in the *Nier* video game franchise.
 
+`popola` takes the role of a kind of PPU -- it is responsible for managing and interpreting VRAM, input, etc., while `devola` handles the underlying code execution. 
+
 ## TODOs:
 Some examples use unimplemented features. These include
 - Offsetting the index `XY` quasi-register using `+N` notation

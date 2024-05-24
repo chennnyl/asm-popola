@@ -58,8 +58,8 @@ pub mod text {
         static ref LEADING_SPACE: Regex = Regex::new(r"^\s+").unwrap();
         static ref TRAILING_SPACE: Regex = Regex::new(r"\s+$").unwrap();
 
-        static ref ONLY_INDIRECT: &'static str = r"(?<source>#\d+[bh]?|XY)";
-        static ref ANY_SOURCE: &'static str = r"(?<source>[abcxy]|#?\d+[bh]?|XY)";
+        static ref ONLY_INDIRECT: &'static str = r"(?<source>#[0-9a-f]+[bh]?|XY)";
+        static ref ANY_SOURCE: &'static str = r"(?<source>[abcxy]|#?[0-9a-f]+[bh]?|XY)";
 
         static ref INST_LOAD: Regex = RegexBuilder::new((String::from(r"ld(?<target>[abcxy]) ") + *ANY_SOURCE).as_str())
             .case_insensitive(true)
@@ -389,6 +389,7 @@ pub mod text {
             assert_eq!(to_addressing_mode("8"), Ok(AddressingMode::Immediate(8)));
             assert_eq!(to_addressing_mode("1000b"), Ok(AddressingMode::Immediate(0b1000)));
             assert_eq!(to_addressing_mode("10h"), Ok(AddressingMode::Immediate(0x10)));
+            assert_eq!(to_addressing_mode("FFh"), Ok(AddressingMode::Immediate(0xFF)));
             assert_eq!(to_addressing_mode("#10h"), Ok(AddressingMode::Indirect(0x10)));
             assert_eq!(to_addressing_mode("#8"), Ok(AddressingMode::Indirect(8)));
             assert_eq!(to_addressing_mode("#FFFFh"), Ok(AddressingMode::Indirect(0xFFFF)));
@@ -509,7 +510,7 @@ pub mod intermediate {
                 }
             };
 
-            let devola = Devola::new(code, None);
+            let mut devola = Devola::new(code, None);
             if let Err(_) = devola.run() {
                 panic!();
             }

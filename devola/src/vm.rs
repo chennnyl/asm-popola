@@ -1,22 +1,22 @@
 use std::collections::HashMap;
 use std::ops::{Index, IndexMut};
 use crate::instructions::*;
+use crate::util::{build_u16, break_u16};
 
-const MEMORY_SIZE: usize = (u16::MAX as usize)+1;
+pub const MEMORY_SIZE: usize = (u16::MAX as usize)+1;
 /// There are 16 bytes of memory-mapped I/O (MMIO). They are labeled as (relative to the base MMIO address):
 /// - `0`: MSB of the stack pointer
 /// - `1`: LSB of the stack pointer
 /// - `2`-`F`: Reserved
-const MMIO: u16             = 0x0FF0;
-const STACK_POINTER_MSB: u16    = MMIO+0x1;
-const STACK_POINTER_LSB: u16    = MMIO+0x2;
-// const VRAM: u16 = 0xF000;
+pub const MMIO: u16             = 0x0FF0;
+pub const STACK_POINTER_MSB: u16    = MMIO+0x0;
+pub const STACK_POINTER_LSB: u16    = MMIO+0x1;
 
 /// The stack begins at 0x0F00 and grows down
 const INITIAL_STACK_POINTER: u16 = 0x0F00;
 
-struct DevolaMemory {
-    memory: [u8; MEMORY_SIZE],
+pub(crate) struct DevolaMemory {
+    pub(crate) memory: [u8; MEMORY_SIZE],
     flags: u8,
     registers: [u8; 5]
 }
@@ -99,7 +99,7 @@ impl DevolaMemory {
 }
 
 pub struct Devola {
-    memory: DevolaMemory,
+    pub(crate) memory: DevolaMemory,
     code: Vec<Instruction>,
     pc: usize,
     debug: bool,
@@ -108,15 +108,9 @@ pub struct Devola {
 }
 #[derive(Copy, Clone, Debug)]
 pub enum DevolaError {
-    InvalidArgument, Unimplemented
+    InvalidArgument, Unimplemented, EndCode
 }
 
-fn build_u16(msb: u8, lsb: u8) -> u16 {
-    ((msb as u16) << 8) | lsb as u16
-}
-fn break_u16(word: u16) -> (u8, u8) {
-    ((word >> 8) as u8, (word & 0x00FF) as u8)
-}
 
 impl Devola {
     pub fn new(code: Vec<Instruction>, symbol_table: Option<HashMap<usize, String>>) -> Self {
@@ -142,65 +136,48 @@ impl Devola {
         self.debug = false;
     }
 
-    pub fn run(mut self) -> Result<(), DevolaError> {
-        let mut modified_addresses: HashMap<u16, u8> = HashMap::new();
-
-        loop {
-            match self.code.get(self.pc) {
-                Some(instruction) => {
-                    let debug_inst = instruction.clone();
-                    if let Err(error) = self.execute_instruction(instruction.clone()) {
-                        if self.debug {
-                            eprintln!("An error of type {:?} occurred at PC {}", error, self.pc);
-                        }
-                        return Err(error);
-                    }
+    pub fn step(&mut self) -> Result<(), DevolaError> {
+        match self.code.get(self.pc) {
+            Some(instruction) => {
+                let debug_inst = instruction.clone();
+                if let Err(error) = self.execute_instruction(instruction.clone()) {
                     if self.debug {
-                        match debug_inst {
-                            Instruction::Store(_, mode) => {
-                                let lvalue = match mode {
-                                    AddressingMode::Indirect(address) => address,
-                                    AddressingMode::Index => self.memory.get_index(),
-                                    _ => 0
-                                };
-                                let rvalue = self.resolve_rvalue(mode.clone());
-
-                                modified_addresses.insert(lvalue, rvalue);
-                            }
-                            Instruction::Call(CallType::Local(loc)) => {
-                                let symbol = match &self.symbol_table {
-                                    Some(table) => table.get(&loc).unwrap_or(&String::from("unknown")).clone(),
-                                    None => loc.to_string()
-                                };
-
-                                println!("Call {}", symbol);
-                                self.call_stack.push(symbol);
-                            }
-                            Instruction::Return => {
-                                println!("{} returned {}", self.call_stack.pop().unwrap_or(String::from("unknown")), self.memory[Register::UtilityB]);
-                            },
-                            _ => {}
-                        };
+                        eprintln!("An error of type {:?} occurred at PC {}", error, self.pc);
                     }
-                    self.pc += 1;
+                    return Err(error);
                 }
-                None => { break }
+                if self.debug {
+                    match debug_inst {
+                        Instruction::Call(CallType::Local(loc)) => {
+                            let symbol = match &self.symbol_table {
+                                Some(table) => table.get(&loc).unwrap_or(&String::from("unknown")).clone(),
+                                None => loc.to_string()
+                            };
+
+                            println!("Call {}", symbol);
+                            self.call_stack.push(symbol);
+                        }
+                        Instruction::Return => {
+                            println!("{} returned {}", self.call_stack.pop().unwrap_or(String::from("unknown")), self.memory[Register::UtilityB]);
+                        },
+                        _ => {}
+                    };
+                }
+                self.pc += 1;
+                Ok(())
+            }
+            None => { Err(DevolaError::EndCode) }
+        }
+    }
+
+    pub fn run(&mut self) -> Result<(), DevolaError> {
+        loop {
+            match self.step() {
+                Err(DevolaError::EndCode) => { return Ok(()) },
+                Err(error) => { return Err(error ) },
+                _ => {}
             }
         }
-
-        if self.debug {
-            println!("{:?}", modified_addresses);
-            println!("Registers:\nA: 0x{:02x} B: 0x{:02x} C: 0x{:02x} XY: 0x{:04x}",
-                     self.memory[Register::Accumulator], self.memory[Register::UtilityB],
-                     self.memory[Register::UtilityC], self.memory.get_index()
-            );
-            println!("Flags:\nC: {:?} P: {:?} S: {:?} Z: {:?}",
-                     self.memory.flag(Flag::Carry), self.memory.flag(Flag::Parity),
-                     self.memory.flag(Flag::Sign), self.memory.flag(Flag::Zero)
-            );
-        }
-
-        Ok(())
     }
     fn push(&mut self, value: u8) {
         let new_stack_pointer = self.get_stack_pointer()-1;
@@ -464,7 +441,7 @@ mod tests {
             )
         ];
 
-        let devola = Devola::new(code, None);
+        let mut devola = Devola::new(code, None);
         if let Err(_) = devola.run() {
             panic!();
         }
@@ -506,7 +483,7 @@ mod tests {
             Instruction::_Assert(AddressingMode::Register(Register::UtilityC), 25)
         ]).unwrap();
 
-        let devola = Devola::new(code, None);
+        let mut devola = Devola::new(code, None);
         if let Err(_) = devola.run() {
             panic!();
         }
@@ -585,21 +562,7 @@ mod tests {
             Instruction::_Assert(AddressingMode::Register(Register::UtilityB), 3 * 3)
         ]).unwrap();
 
-        let devola = Devola::new(code, None);
-        if let Err(_) = devola.run() {
-            panic!();
-        }
-    }
-
-    fn execute_file(path: &str) {
-        let file = Path::new(path);
-        let code = crate::util::read_from_file(file);
-
-        let (code, symbols) = parser::text::compile(code).unwrap();
-
-        let mut devola = Devola::new(code, Some(symbols));
-        devola.enable_debug();
-
+        let mut devola = Devola::new(code, None);
         if let Err(_) = devola.run() {
             panic!();
         }
@@ -607,17 +570,17 @@ mod tests {
 
     #[test]
     fn test_compile_run_from_source_squares() {
-        execute_file("sample/square.pop")
+        crate::util::execute_file("sample/square.pop").unwrap();
     }
 
     #[test]
     fn test_compile_run_from_source_squares_subroutines() {
-        execute_file("sample/square_subroutines.pop");
+        crate::util::execute_file("sample/square_subroutines.pop").unwrap();
     }
 
     #[test]
     fn test_compile_run_from_source_rw() {
-        execute_file("sample/read_write_memory.pop");
+        crate::util::execute_file("sample/read_write_memory.pop").unwrap();
     }
 }
 

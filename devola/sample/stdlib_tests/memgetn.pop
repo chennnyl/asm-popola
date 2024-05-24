@@ -1,0 +1,12 @@
+    lda 0
+    ldb ffh
+    ldx 0
+    ldy 0
+loop:
+    ldy a
+    sta XY
+    cmp b
+    jz end_loop
+    inc
+    jmp loop
+end_loop:
