@@ -94,6 +94,12 @@ pub struct Sprite {
     pub info: u8
 }
 
+impl Sprite {
+    pub fn enabled(&self) -> bool {
+        self.info & 0b00000001 == 0b00000001
+    }
+}
+
 #[derive(Debug)]
 pub struct VRAMModel {
     pub palettes: [Palette; mmio::PALETTE_COUNT],

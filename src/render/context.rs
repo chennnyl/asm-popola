@@ -1,81 +1,88 @@
-use sdl2::render::{TextureCreator, WindowCanvas, Texture};
-use sdl2::video::WindowContext;
-use sdl2::rect::Rect;
-use sdl2::pixels::Color;
-use std::rc::Rc;
-use std::cell::{RefCell, Ref};
+use crate::inter::mmio::*;
 use crate::gfx::*;
-use crate::inter::{mmio::*, gfx::*};
+
+use pixels::Pixels;
+
+const SCREEN_BUFFER_SIZE: usize = (SCREEN_HEIGHT*SCREEN_WIDTH*4) as usize;
 
 pub(crate) struct RenderContext {
-    canvas: Rc<RefCell<WindowCanvas>>,
-    texture_creator: RefCell<TextureCreator<WindowContext>>,
-    vrammodel: VRAMModel
+    vrammodel: VRAMModel,
+    pixels: Pixels,
+    screen_buffer: [u8; SCREEN_BUFFER_SIZE]
 }
 
 impl RenderContext {
-    fn render_to_sprite(
-        &self,
-        sprite_texture: Rc<RefCell<Texture<'_>>>,
-        sprite_index: usize,
-    ) {
-        let mut sprite_texture = sprite_texture.borrow_mut();
+    pub fn new(pixels: Pixels) -> RenderContext {
+        RenderContext { vrammodel: VRAMModel::empty_vram(), pixels, screen_buffer: [0; SCREEN_BUFFER_SIZE] }
+    }
 
-        let sprite = &self.vrammodel.sprites[sprite_index];
+    fn draw_sprites(&mut self) {
+        for sprite in self.vrammodel.sprites {
+            if sprite.enabled() {
+                self.render_sprite(&sprite);
+            }
+        }
+    }
+
+    pub fn render(&mut self) {
+        let frame = self.pixels.frame_mut();
+        for (pi, pixel) in frame.chunks_exact_mut(4).enumerate() {
+            let (x, y) = (pi % SCREEN_WIDTH as usize, pi / SCREEN_WIDTH as usize);
+            let val = (8*(x/8) % 256) as u8;
+            let color = [val, 0x00, 0x00, 0xff];
+            pixel.copy_from_slice(&color);
+        }
+        // self.draw_sprites();
+        self.pixels.render().unwrap();
+    }
+
+    fn render_sprite(
+        &mut self,
+        sprite: &Sprite
+    ) {
         let properties = sprite.properties;
         let tilemap = &self.vrammodel.tilemaps[properties.tilemap_index as usize];
         let palette = &self.vrammodel.palettes[properties.palette_index as usize];
 
-        let pitch = SpriteSize::pitch(properties.size);
-        let tile_pitch = pitch as usize / TILE_LENGTH;
+        let pitch = SpriteSize::pitch(properties.size); // width of the whole sprite
+        let tile_pitch = pitch as usize / TILE_LENGTH; // width of the sprite in tiles
 
         let tile_count = (tile_pitch * tile_pitch) as u8;
 
         let tiles = &tilemap.tiles[sprite.gfx_start as usize..(sprite.gfx_start + tile_count) as usize];
 
-        let screen_destination = Rect::new(
-            sprite.location.0 as i32, sprite.location.1 as i32, pitch, pitch
-        );
-
-        println!("{:?}", screen_destination);
+        let (top_x, top_y) = sprite.location;
 
         tiles.iter()
             .enumerate()
             .for_each(|(index, tile)| {
-                // relative location of tile within sprite
-                let (tx, ty) = (index % tile_pitch, index / tile_pitch);
-                let destination_rect = Rect::new(
-                    (tx*tile_pitch) as i32, (ty*tile_pitch) as i32,
-                    tile_pitch as u32, tile_pitch as u32
-                );
                 // convert the tile into an array of bytes representing the pixel data
-                let absolute_colors = tile.pixels
+                let tile_flat: Vec<u8> = tile.pixels
                     .iter()
                     .map(|palette_index| {
                         let color = palette.colors[*palette_index as usize];
-                        [color.r, color.g, color.b]
+                        [color.r, color.g, color.b, 0xFF]
                     })
                     .flatten()
-                    .collect::<Vec<u8>>();
+                    .collect();
 
-                println!("{:?}", absolute_colors);
-                // blit onto the texture
-                sprite_texture.update(
-                    destination_rect, &absolute_colors, 3*TILE_LENGTH
-                ).unwrap();
+                let (tx, ty) = (index % tile_pitch, index / tile_pitch);
+
+                let (absolute_x, absolute_y) = (top_x as usize + TILE_LENGTH*tx, top_y as usize + TILE_LENGTH*ty);
+
+                tile_flat.chunks_exact(8)
+                    .enumerate()
+                    .for_each(|(line_index, line)| {
+                        let linear_start = SCREEN_WIDTH as usize*absolute_y + absolute_x;
+                        self.screen_buffer[linear_start..linear_start+8].copy_from_slice(line);
+                    });
             });
-
-        self.canvas
-            .borrow_mut()
-            .copy(&sprite_texture, None, screen_destination)
-            .unwrap();
     }
 
 }
 
 #[cfg(test)]
 mod tests {
-    use sdl2::event::Event;
     use super::*;
 
     fn dummy_tile() -> Tile {

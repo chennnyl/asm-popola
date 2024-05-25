@@ -1,14 +1,10 @@
 mod inter;
 mod gfx;
-// mod render;
+mod render;
 mod application;
 
-use inter::mmio;
+use winit::event_loop::EventLoop;
 
-use pixels::{Error, Pixels, SurfaceTexture};
-use winit::event_loop::{ControlFlow, EventLoop, ActiveEventLoop};
-
-const VIEW_SCALE: u32 = 2;
 
 fn main() {
     let mut application = application::Application::new();

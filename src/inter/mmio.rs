@@ -48,7 +48,7 @@ pub const BG_OFFSET: u16 = BG_START+(BG_SIZE*BG_COUNT) as u16;
 //                                                                           priority: 0-3, higher priority is drawn over lower
 // Location: 2 bytes (x then y)
 // Start index: 1 byte
-// Rendering info: 1 byte (currently unused)
+// Rendering info: 1 byte [unused|unused|unused|unused|unused|unused|unused|enabled]
 pub const SPRITE_START: u16 = BG_OFFSET;
 pub const SPRITE_SIZE: usize = 5;
 pub const SPRITE_COUNT: usize = 128;
