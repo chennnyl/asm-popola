@@ -1,2 +1,2 @@
 pub mod mmio;
-mod gfx;
+pub mod gfx;

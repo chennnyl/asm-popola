@@ -138,7 +138,7 @@ mod tests {
             Sprite {
                 properties: SpriteProperties {
                     tilemap_index: 0,
-                    size: SpriteSize::x32,
+                    size: SpriteSize::X32,
                     palette_index: 1,
                     priority: 1
                 },
