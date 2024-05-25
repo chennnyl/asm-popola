@@ -3,7 +3,6 @@ use crate::mmio::*;
 use devola::stdlib;
 use devola::vm::Devola;
 use devola::utility::*;
-use sdl2::pixels::Color;
 
 pub trait VRAMDeserialize: Sized {
 
@@ -27,7 +26,6 @@ pub fn rgb15_to_color(color_word: u16) -> Color {
         r: 8 * (color_word >> 10) as u8,
         g: 8 * ((color_word >> 5) & 0x1F) as u8,
         b: 8 * (color_word & 0x1F) as u8,
-        a: 0xFF
     }
 }
 pub fn color_to_rgb15(color: Color) -> u16 {

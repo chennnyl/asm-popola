@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sdl2 = "0.36.0"
+pixels = "0.13.0"
+winit = "0.30.0"
+winit_input_helper = "0.16.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

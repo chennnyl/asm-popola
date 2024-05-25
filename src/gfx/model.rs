@@ -1,5 +1,11 @@
-use sdl2::pixels::Color;
 use crate::inter::mmio;
+
+#[derive(Debug,Clone,Copy)]
+pub struct Color {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Palette {

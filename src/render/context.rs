@@ -2,32 +2,24 @@ use sdl2::render::{TextureCreator, WindowCanvas, Texture};
 use sdl2::video::WindowContext;
 use sdl2::rect::Rect;
 use sdl2::pixels::Color;
+use std::rc::Rc;
+use std::cell::{RefCell, Ref};
 use crate::gfx::*;
 use crate::inter::{mmio::*, gfx::*};
 
 pub(crate) struct RenderContext {
-    pub(crate) canvas: WindowCanvas,
-    texture_creator: TextureCreator<WindowContext>,
+    canvas: Rc<RefCell<WindowCanvas>>,
+    texture_creator: RefCell<TextureCreator<WindowContext>>,
     vrammodel: VRAMModel
 }
 
 impl RenderContext {
-    pub fn new(canvas: WindowCanvas, vrammodel: VRAMModel) -> Self {
-        let texture_creator = canvas.texture_creator();
-        Self {
-            canvas, texture_creator, vrammodel
-        }
-    }
-    fn sprite_texture(&self) -> Texture<'_> {
-        let pitch = SpriteSize::pitch(SpriteSize::X64);
-        self.texture_creator.create_texture_streaming(None, pitch, pitch).unwrap()
-    }
-
-    fn render_sprite(
-        &mut self,
+    fn render_to_sprite(
+        &self,
+        sprite_texture: Rc<RefCell<Texture<'_>>>,
         sprite_index: usize,
     ) {
-        let mut sprite_texture = self.sprite_texture();
+        let mut sprite_texture = sprite_texture.borrow_mut();
 
         let sprite = &self.vrammodel.sprites[sprite_index];
         let properties = sprite.properties;
@@ -44,6 +36,8 @@ impl RenderContext {
         let screen_destination = Rect::new(
             sprite.location.0 as i32, sprite.location.1 as i32, pitch, pitch
         );
+
+        println!("{:?}", screen_destination);
 
         tiles.iter()
             .enumerate()
@@ -63,19 +57,25 @@ impl RenderContext {
                     })
                     .flatten()
                     .collect::<Vec<u8>>();
+
+                println!("{:?}", absolute_colors);
                 // blit onto the texture
                 sprite_texture.update(
                     destination_rect, &absolute_colors, 3*TILE_LENGTH
                 ).unwrap();
             });
 
-        self.canvas.copy(&sprite_texture, None, screen_destination).unwrap();
+        self.canvas
+            .borrow_mut()
+            .copy(&sprite_texture, None, screen_destination)
+            .unwrap();
     }
 
 }
 
 #[cfg(test)]
 mod tests {
+    use sdl2::event::Event;
     use super::*;
 
     fn dummy_tile() -> Tile {
@@ -138,23 +138,26 @@ mod tests {
                 1, 1, 1, 1, 1, 1, 1, 1, // !!!!!!!!
             ]
         };
+        tilemaps[0].tiles = tiles;
 
         let backgrounds = [dummy_background(); BG_COUNT];
         let mut sprites = [dummy_sprite(); SPRITE_COUNT];
+
+        sprites[0] = Sprite {
+            properties: SpriteProperties {
+                tilemap_index: 0,
+                size: SpriteSize::X8,
+                palette_index: 0,
+                priority: 0
+            },
+            location: (128, 128),
+            gfx_start: 0,
+            info: 0
+        };
 
         let fake_vram = VRAMModel {
             palettes, tilemaps, backgrounds, sprites
         };
 
-        let sdl2 = sdl2::init().unwrap();
-        let video = sdl2.video().unwrap();
-        let window = video.window(
-            "Test Render Sprite",
-                SCREEN_WIDTH, SCREEN_HEIGHT
-        ).position_centered().build().unwrap();
-        let canvas = window.into_canvas().build().unwrap();
-
-        let mut render_context = RenderContext::new(canvas, fake_vram);
-        render_context.render_sprite(0);
     }
 }
