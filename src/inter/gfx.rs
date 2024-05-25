@@ -33,7 +33,7 @@ impl VRAMModel {
     pub fn empty_vram() -> VRAMModel {
         let palettes = [VRAMModel::empty_palette(); PALETTE_COUNT];
         let tilemaps = [VRAMModel::empty_tilemap(); TILEMAP_COUNT];
-        let tiles = [VRAMModel::empty_tile(); TILEMAP_LENGTH*TILEMAP_LENGTH];
+        // let tiles = [VRAMModel::empty_tile(); TILEMAP_LENGTH*TILEMAP_LENGTH];
 
         let backgrounds = [VRAMModel::empty_background(); BG_COUNT];
         let sprites = [VRAMModel::empty_sprite(); SPRITE_COUNT];
@@ -41,6 +41,17 @@ impl VRAMModel {
         VRAMModel {
             palettes, tilemaps, backgrounds, sprites
         }
+    }
+
+    pub fn enable_sprite(&mut self, sprite_index: u8) {
+        let render_info = self.sprites[sprite_index as usize].info;
+
+        self.sprites[sprite_index as usize].info = render_info | 0b00000001;
+    }
+    pub fn disable_sprite(&mut self, sprite_index: u8) {
+        let render_info = self.sprites[sprite_index as usize].info;
+
+        self.sprites[sprite_index as usize].info = render_info & 0b11111110;
     }
 }
 

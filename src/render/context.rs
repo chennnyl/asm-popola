@@ -3,46 +3,36 @@ use crate::gfx::*;
 
 use pixels::Pixels;
 
-const SCREEN_BUFFER_SIZE: usize = (SCREEN_HEIGHT*SCREEN_WIDTH*4) as usize;
-
 pub(crate) struct RenderContext {
-    vrammodel: VRAMModel,
+    pub vrammodel: VRAMModel,
     pixels: Pixels,
-    screen_buffer: [u8; SCREEN_BUFFER_SIZE]
 }
 
 impl RenderContext {
     pub fn new(pixels: Pixels) -> RenderContext {
-        RenderContext { vrammodel: VRAMModel::empty_vram(), pixels, screen_buffer: [0; SCREEN_BUFFER_SIZE] }
-    }
-
-    fn draw_sprites(&mut self) {
-        for sprite in self.vrammodel.sprites {
-            if sprite.enabled() {
-                self.render_sprite(&sprite);
-            }
-        }
+        RenderContext { vrammodel: VRAMModel::empty_vram(), pixels }
     }
 
     pub fn render(&mut self) {
         let frame = self.pixels.frame_mut();
         for (pi, pixel) in frame.chunks_exact_mut(4).enumerate() {
-            let (x, y) = (pi % SCREEN_WIDTH as usize, pi / SCREEN_WIDTH as usize);
+            let x  = pi % SCREEN_WIDTH as usize;
             let val = (8*(x/8) % 256) as u8;
             let color = [val, 0x00, 0x00, 0xff];
             pixel.copy_from_slice(&color);
         }
-        // self.draw_sprites();
+        for sprite in &self.vrammodel.sprites {
+            if sprite.enabled() {
+                RenderContext::render_sprite(&self.vrammodel, sprite, frame);
+            }
+        }
         self.pixels.render().unwrap();
     }
 
-    fn render_sprite(
-        &mut self,
-        sprite: &Sprite
-    ) {
+    fn render_sprite(vram: &VRAMModel, sprite: &Sprite, frame: &mut [u8]) {
         let properties = sprite.properties;
-        let tilemap = &self.vrammodel.tilemaps[properties.tilemap_index as usize];
-        let palette = &self.vrammodel.palettes[properties.palette_index as usize];
+        let tilemap = vram.tilemaps[properties.tilemap_index as usize];
+        let palette = vram.palettes[properties.palette_index as usize];
 
         let pitch = SpriteSize::pitch(properties.size); // width of the whole sprite
         let tile_pitch = pitch as usize / TILE_LENGTH; // width of the sprite in tiles
@@ -70,11 +60,11 @@ impl RenderContext {
 
                 let (absolute_x, absolute_y) = (top_x as usize + TILE_LENGTH*tx, top_y as usize + TILE_LENGTH*ty);
 
-                tile_flat.chunks_exact(8)
+                tile_flat.chunks_exact(TILE_LENGTH*4)
                     .enumerate()
                     .for_each(|(line_index, line)| {
-                        let linear_start = SCREEN_WIDTH as usize*absolute_y + absolute_x;
-                        self.screen_buffer[linear_start..linear_start+8].copy_from_slice(line);
+                        let linear_start = SCREEN_WIDTH as usize*(absolute_y+line_index)*4 + absolute_x;
+                        frame[linear_start..linear_start+TILE_LENGTH*4].copy_from_slice(line);
                     });
             });
     }
