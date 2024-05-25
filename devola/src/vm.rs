@@ -419,7 +419,7 @@ impl Devola {
                         let (msb, lsb) = break_u16(self.pc as u16);
                         self.push(msb);
                         self.push(lsb);
-                        self.pc = dest as usize;
+                        self.pc = dest;
                         Ok(())
                     }
                     CallType::Library(_) => Err(DevolaError::Unimplemented)

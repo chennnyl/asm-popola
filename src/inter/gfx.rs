@@ -1,9 +1,49 @@
 use crate::gfx::*;
-use crate::mmio::*;
+use crate::inter::mmio::*;
 use devola::stdlib;
 use devola::vm::Devola;
 use devola::utility::*;
-use sdl2::pixels::Color;
+
+impl VRAMModel {
+    fn empty_tile() -> Tile {
+        Tile { pixels: [0; TILE_SIZE] }
+    }
+
+    fn empty_palette() -> Palette {
+        Palette { colors: [Color { r: 0, g: 0, b: 0 }; PALETTE_LENGTH] }
+    }
+    fn empty_tilemap() -> Tilemap {
+        Tilemap { tiles: [VRAMModel::empty_tile(); TILEMAP_LENGTH*TILEMAP_LENGTH] }
+    }
+    fn empty_background() -> Background {
+        Background { tiles: [0; BG_SIZE] }
+    }
+
+    fn empty_sprite() -> Sprite {
+        Sprite {
+            properties: SpriteProperties {
+                tilemap_index: 0, palette_index: 0, size: SpriteSize::X8, priority: 0
+            },
+            location: (0, 0),
+            gfx_start: 0,
+            info: 0
+        }
+    }
+
+    pub fn empty_vram() -> VRAMModel {
+        let palettes = [VRAMModel::empty_palette(); PALETTE_COUNT];
+        let tilemaps = [VRAMModel::empty_tilemap(); TILEMAP_COUNT];
+        let tiles = [VRAMModel::empty_tile(); TILEMAP_LENGTH*TILEMAP_LENGTH];
+
+        let backgrounds = [VRAMModel::empty_background(); BG_COUNT];
+        let sprites = [VRAMModel::empty_sprite(); SPRITE_COUNT];
+
+        VRAMModel {
+            palettes, tilemaps, backgrounds, sprites
+        }
+    }
+}
+
 
 pub trait VRAMDeserialize: Sized {
 
@@ -27,7 +67,6 @@ pub fn rgb15_to_color(color_word: u16) -> Color {
         r: 8 * (color_word >> 10) as u8,
         g: 8 * ((color_word >> 5) & 0x1F) as u8,
         b: 8 * (color_word & 0x1F) as u8,
-        a: 0xFF
     }
 }
 pub fn color_to_rgb15(color: Color) -> u16 {
@@ -40,13 +79,13 @@ impl VRAMDeserialize for Palette {
         (PALETTE_START, PALETTE_SIZE as u16)
     }
     fn deserialize(data: &[u8]) -> Palette {
-        /// RGB15 are laid out as
-        /// MSB      LSB
-        /// 0rrrrrgg gggbbbbb
-        /// =>  red     = word >> 10
-        ///     green   = (word >> 5) & 0x1F
-        ///     blue    = word & 0x1F
-        let mut colors: [Color; PALETTE_LENGTH] = [Color::BLACK; PALETTE_LENGTH];
+        // RGB15 are laid out as
+        // MSB      LSB
+        // 0rrrrrgg gggbbbbb
+        // =>  red     = word >> 10
+        //     green   = (word >> 5) & 0x1F
+        //     blue    = word & 0x1F
+        let mut colors: [Color; PALETTE_LENGTH] = [Color { r: 0, g: 0, b: 0 }; PALETTE_LENGTH];
         (0..PALETTE_LENGTH).for_each(
             |i| {
                 let index = i*2;
@@ -138,7 +177,7 @@ mod tests {
             Sprite {
                 properties: SpriteProperties {
                     tilemap_index: 0,
-                    size: SpriteSize::x32,
+                    size: SpriteSize::X32,
                     palette_index: 1,
                     priority: 1
                 },

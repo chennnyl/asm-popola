@@ -1,21 +1,27 @@
-use sdl2::pixels::Color;
 use crate::inter::mmio;
 
-#[derive(Debug)]
+#[derive(Debug,Clone,Copy)]
+pub struct Color {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct Palette {
     pub colors: [Color; mmio::PALETTE_LENGTH]
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 
 pub struct Tile {
     pub pixels: [u8; mmio::TILE_SIZE]
 }
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 
 pub struct Tilemap {
     pub tiles: [Tile; mmio::TILEMAP_LENGTH*mmio::TILEMAP_LENGTH]
 }
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 
 pub struct Background {
     pub tiles: [u8; mmio::BG_SIZE]
@@ -23,16 +29,19 @@ pub struct Background {
 #[derive(Debug, PartialEq, Copy, Clone)]
 
 pub enum SpriteSize {
-    x8, x16, x32, x64
+    X8,
+    X16,
+    X32,
+    X64
 }
 
 impl From<u8> for SpriteSize {
     fn from(value: u8) -> Self {
         match value {
-            0 => Self::x8,
-            1 => Self::x16,
-            2 => Self::x32,
-            _ => Self::x64
+            0 => Self::X8,
+            1 => Self::X16,
+            2 => Self::X32,
+            _ => Self::X64
         }
     }
 }
@@ -40,23 +49,23 @@ impl From<u8> for SpriteSize {
 impl SpriteSize {
     pub fn size(sprite_size: SpriteSize) -> usize {
         match sprite_size {
-            SpriteSize::x8 => 64,
-            SpriteSize::x16 => 256,
-            SpriteSize::x32 => 1024,
-            SpriteSize::x64 => 4096
+            SpriteSize::X8 => 64,
+            SpriteSize::X16 => 256,
+            SpriteSize::X32 => 1024,
+            SpriteSize::X64 => 4096
         }
     }
     pub fn pitch(sprite_size: SpriteSize) -> u32 {
         match sprite_size {
-            SpriteSize::x8 => 8,
-            SpriteSize::x16 => 16,
-            SpriteSize::x32 => 32,
-            SpriteSize::x64 => 64
+            SpriteSize::X8 => 8,
+            SpriteSize::X16 => 16,
+            SpriteSize::X32 => 32,
+            SpriteSize::X64 => 64
         }
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 
 pub struct SpriteProperties {
     pub tilemap_index: u8,
@@ -76,13 +85,19 @@ impl From<u8> for SpriteProperties {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 
 pub struct Sprite {
     pub properties: SpriteProperties,
     pub location: (u8, u8),
     pub gfx_start: u8,
     pub info: u8
+}
+
+impl Sprite {
+    pub fn enabled(&self) -> bool {
+        self.info & 0b00000001 == 0b00000001
+    }
 }
 
 #[derive(Debug)]
