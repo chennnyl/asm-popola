@@ -44,7 +44,7 @@ impl VRAMDeserialize for Palette {
         /// =>  red     = word >> 10
         ///     green   = (word >> 5) & 0x1F
         ///     blue    = word & 0x1F
-        let mut colors: [Color; PALETTE_LENGTH] = [Color::BLACK; PALETTE_LENGTH];
+        let mut colors: [Color; PALETTE_LENGTH] = [Color { r: 0, g: 0, b: 0 }; PALETTE_LENGTH];
         (0..PALETTE_LENGTH).for_each(
             |i| {
                 let index = i*2;
