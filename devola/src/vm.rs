@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::ops::{Index, IndexMut};
 use crate::instructions::*;
 use crate::util::{build_u16, break_u16};
+use crate::stdlib::interface::DevolaExtern;
 
 pub const MEMORY_SIZE: usize = (u16::MAX as usize)+1;
 /// There are 16 bytes of memory-mapped I/O (MMIO). They are labeled as (relative to the base MMIO address):
@@ -104,7 +105,8 @@ pub struct Devola {
     pc: usize,
     debug: bool,
     call_stack: Vec<String>,
-    symbol_table: Option<HashMap<usize, String>>
+    symbol_table: Option<HashMap<usize, String>>,
+    externs: Option<HashMap<String, Box<DevolaExtern>>>
 }
 #[derive(Copy, Clone, Debug)]
 pub enum DevolaError {
@@ -120,7 +122,8 @@ impl Devola {
             pc: 0,
             debug: false,
             call_stack: Vec::new(),
-            symbol_table
+            symbol_table,
+            externs: None
         };
         let (msb, lsb) = break_u16(INITIAL_STACK_POINTER);
         out.memory[STACK_POINTER_MSB] = msb;
@@ -179,14 +182,14 @@ impl Devola {
             }
         }
     }
-    fn push(&mut self, value: u8) {
+    pub(crate) fn push(&mut self, value: u8) {
         let new_stack_pointer = self.get_stack_pointer()-1;
         let (msb, lsb) = break_u16(new_stack_pointer);
         self.memory[new_stack_pointer] = value;
         self.memory[STACK_POINTER_MSB] = msb;
         self.memory[STACK_POINTER_LSB] = lsb;
     }
-    fn pop(&mut self) -> u8 {
+    pub(crate) fn pop(&mut self) -> u8 {
         let new_stack_pointer = self.get_stack_pointer()+1;
         let (msb, lsb) = break_u16(new_stack_pointer);
         self.memory[STACK_POINTER_MSB] = msb;

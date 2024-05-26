@@ -23,6 +23,48 @@ pub fn memset(devola: &mut Devola, source: &[u8], destination: u16, size: u16) {
     }
 }
 
+pub mod interface {
+    use super::*;
+    use crate::util;
+
+    /// `memclear(start_hi, start_lo, size_hi, size_lo)`
+    ///
+    /// Accepts arguments from the stack. Sets the specified range of `size` bytes
+    /// starting at `start` in memory to 0.
+    pub fn i_memclear(devola: &mut Devola) {
+        let (size_lo, size_hi) = (devola.pop(), devola.pop());
+        let (start_lo, start_hi) = (devola.pop(), devola.pop());
+        let size = util::build_u16(size_hi, size_lo);
+        let start = util::build_u16(start_hi, start_lo);
+        memclear(devola, start, size);
+    }
+
+    /// `memcpy(source_hi, source_lo, dest_hi, dest_lo, size_hi, size_lo)`
+    ///
+    /// Accepts arguments from the stack. Copies `size` bytes starting from `source` to the
+    /// range starting at `dest`.
+    pub fn i_memcpy(devola: &mut Devola) {
+        let (size_lo, size_hi) = (devola.pop(), devola.pop());
+        let (dest_lo, dest_hi) = (devola.pop(), devola.pop());
+        let (source_lo, source_hi) = (devola.pop(), devola.pop());
+        let size = util::build_u16(size_hi, size_lo);
+        let destination = util::build_u16(dest_hi, dest_lo);
+        let source = util::build_u16(source_hi, source_lo);
+        memcpy(devola, source, destination, size);
+    }
+
+    pub fn i_debug_println(devola: &mut Devola) {
+        let argc = devola.pop();
+        let mut argv: Vec<u8> = Vec::with_capacity(argc as usize);
+        argv.fill_with(|| devola.pop());
+        let argv: Vec<&u8> = argv.iter().rev().collect();
+
+        println!("{argv:?}");
+    }
+
+    pub type DevolaExtern = dyn FnMut(&mut Devola) -> ();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
