@@ -63,7 +63,7 @@ impl RenderContext {
                 tile_flat.chunks_exact(TILE_LENGTH*4)
                     .enumerate()
                     .for_each(|(line_index, line)| {
-                        let linear_start = SCREEN_WIDTH as usize*(absolute_y+line_index)*4 + absolute_x;
+                        let linear_start = SCREEN_WIDTH as usize*(absolute_y+line_index)*4 + absolute_x*4;
                         frame[linear_start..linear_start+TILE_LENGTH*4].copy_from_slice(line);
                     });
             });
