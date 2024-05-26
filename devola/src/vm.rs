@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::ops::{Index, IndexMut};
 use crate::instructions::*;
+use crate::parser::intermediate::SymbolTable;
 use crate::util::{build_u16, break_u16};
 use crate::stdlib::interface::DevolaExtern;
 
@@ -105,7 +106,7 @@ pub struct Devola {
     pc: usize,
     debug: bool,
     call_stack: Vec<String>,
-    symbol_table: Option<HashMap<usize, String>>,
+    symbol_table: Option<SymbolTable>,
     externs: Option<HashMap<String, Box<DevolaExtern>>>
 }
 #[derive(Copy, Clone, Debug)]
@@ -115,7 +116,7 @@ pub enum DevolaError {
 
 
 impl Devola {
-    pub fn new(code: Vec<Instruction>, symbol_table: Option<HashMap<usize, String>>) -> Self {
+    pub fn new(code: Vec<Instruction>, symbol_table: Option<SymbolTable>) -> Self {
         let mut out = Self {
             memory: DevolaMemory::new(),
             code,
@@ -425,7 +426,18 @@ impl Devola {
                         self.pc = dest;
                         Ok(())
                     }
-                    CallType::Library(_) => Err(DevolaError::Unimplemented)
+                    CallType::Library(symbol) => {
+                        // match &mut self.externs {
+                        //     None => Err(DevolaError::InvalidArgument), // TODO: make new error type
+                        //     Some(extern_table) => {
+                        //         match &mut extern_table.get_mut(&symbol) {
+                        //             Some(func) => { (**func)(self); Ok(()) },
+                        //             None => Err(DevolaError::InvalidArgument)
+                        //         }
+                        //     }
+                        // }
+                        Err(DevolaError::Unimplemented)
+                    }
                 }
             }
             Instruction::Return => {
@@ -561,7 +573,7 @@ mod tests {
             Instruction::_LabeledJump(JumpType::Unconditional, String::from("loop")),
             Instruction::_Label(String::from("end_loop")),
             Instruction::_Assert(AddressingMode::Register(Register::UtilityC), 25)
-        ]).unwrap();
+        ], None).unwrap();
 
         let mut devola = Devola::new(code, None);
         if let Err(_) = devola.run() {
@@ -640,7 +652,7 @@ mod tests {
             Instruction::Load(Register::UtilityB, AddressingMode::Immediate(3)),
             Instruction::_LabeledCall(String::from("square")),
             Instruction::_Assert(AddressingMode::Register(Register::UtilityB), 3 * 3)
-        ]).unwrap();
+        ], None).unwrap();
 
         let mut devola = Devola::new(code, None);
         if let Err(_) = devola.run() {

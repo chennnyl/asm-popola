@@ -26,6 +26,7 @@ pub fn memset(devola: &mut Devola, source: &[u8], destination: u16, size: u16) {
 pub mod interface {
     use super::*;
     use crate::util;
+    use std::collections::HashMap;
 
     /// `memclear(start_hi, start_lo, size_hi, size_lo)`
     ///
@@ -63,6 +64,7 @@ pub mod interface {
     }
 
     pub type DevolaExtern = dyn FnMut(&mut Devola) -> ();
+    pub type DevolaExternTable = HashMap<String, Box<DevolaExtern>>;
 }
 
 #[cfg(test)]

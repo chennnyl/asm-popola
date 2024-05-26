@@ -14,7 +14,7 @@ pub fn execute_file(path: &str) -> Result<Devola, DevolaError> {
     let file = Path::new(path);
     let code = read_from_file(file);
 
-    let (code, symbols) = parser::text::compile(code).unwrap();
+    let (code, symbols) = parser::text::compile(code, None).unwrap();
 
     let mut devola = Devola::new(code, Some(symbols));
     devola.enable_debug();

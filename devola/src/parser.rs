@@ -2,6 +2,7 @@ pub mod text {
     use crate::instructions::*;
     use regex::{RegexBuilder, Regex};
     use lazy_static::lazy_static;
+    use crate::stdlib::interface::DevolaExternTable;
 
     #[derive(Debug, Copy, Clone, PartialEq)]
     pub enum ParseErrorType {
@@ -300,7 +301,7 @@ pub mod text {
             })
             .collect()
     }
-    pub fn compile(code: String) -> ParseResult {
+    pub fn compile(code: String, externs: Option<DevolaExternTable>) -> ParseResult {
         let preprocessed = preprocess(code);
         let mut output: Vec<Instruction> = Vec::new();
         let mut parse_errors: Vec<ParseError> = Vec::new();
@@ -315,7 +316,7 @@ pub mod text {
         if parse_errors.len() > 0 {
             Err(parse_errors)
         } else {
-            let processed = super::intermediate::process_labels(output).map_err(
+            let processed = super::intermediate::process_labels(output, externs).map_err(
                 |missing_labels| {
                     missing_labels.iter().map(|(label, location)| {
                             ParseError {
@@ -357,7 +358,7 @@ pub mod text {
             let file = Path::new("sample/load_store.pop");
             let code = crate::util::read_from_file(file);
 
-            println!("{:?}", compile(code));
+            println!("{:?}", compile(code, None));
         }
 
         #[test]
@@ -365,7 +366,7 @@ pub mod text {
             let file = Path::new("sample/square.pop");
             let code = crate::util::read_from_file(file);
 
-            println!("{:?}", compile(code));
+            println!("{:?}", compile(code, None));
         }
 
         #[test]
@@ -466,12 +467,15 @@ pub mod text {
 /// devola assembly
 pub mod intermediate {
     use crate::instructions::*;
+    use crate::stdlib::interface::DevolaExternTable;
     use std::collections::HashMap;
 
     pub type SymbolTable = HashMap<usize, String>;
     pub type ReverseSymbolTable = HashMap<String, usize>;
 
-    pub fn process_labels(code: Vec<Instruction>) -> Result<(Vec<Instruction>, SymbolTable), Vec<(String, usize)>> {
+    pub fn process_labels(code: Vec<Instruction>, externs: Option<DevolaExternTable>) -> Result<(Vec<Instruction>, SymbolTable), Vec<(String, usize)>> {
+        let extern_table = externs.unwrap_or(HashMap::new());
+
         let jump_table: ReverseSymbolTable = code.iter()
             .enumerate()
             .filter_map(|(pc, instruction)| {
@@ -492,15 +496,17 @@ pub mod intermediate {
                         if let Some(pc) = jump_table.get(label) {
                             Some(Instruction::Jump(jump_type.clone(), *pc))
                         } else {
-                            missing_labels.push((label.clone(), line));
+                            missing_labels.push((format!("Jump: {}", label.clone()), line));
                             None
                         }
                     },
                     Instruction::_LabeledCall(label) => {
                         if let Some(pc) = jump_table.get(label) {
                             Some(Instruction::Call(CallType::Local(*pc)))
+                        } else if extern_table.contains_key(label) {
+                            Some(Instruction::Call(CallType::Library(label.clone())))
                         } else {
-                            missing_labels.push((label.clone(), line));
+                            missing_labels.push((format!("Call: {}", label.clone()), line));
                             None
                         }
                     },
@@ -540,7 +546,7 @@ pub mod intermediate {
                 Instruction::_Label(String::from("label")),
                 Instruction::_Assert(AddressingMode::Register(Register::Accumulator), 10),
             ];
-            let code = match process_labels(code) {
+            let code = match process_labels(code, None) {
                 Ok((processed, _)) => processed,
                 Err(missing_labels) => {
                     eprintln!("Encountered the following missing labels:");
@@ -564,7 +570,7 @@ pub mod intermediate {
                 Instruction::_LabeledJump(JumpType::Unconditional, String::from("label2")),
                 Instruction::_Label(String::from("label2"))
             ];
-            match process_labels(code) {
+            match process_labels(code, None) {
                 Ok(_) => {
                     panic!("Did not catch missing labels");
                 },
